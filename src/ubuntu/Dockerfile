@@ -23,6 +23,7 @@ RUN apt-get --assume-yes install openjdk-9-jre-headless="$JAVA_UBUNTU_VERSION"
 # do some fancy footwork to create a JAVA_HOME that's cross-architecture-safe
 ENV JAVA_HOME /usr/lib/jvm/java-9-openjdk-amd64/bin/java
 
+
 #
 # INSTALL FONTS
 #
@@ -33,6 +34,7 @@ RUN apt-get --assume-yes install fonts-dejavu
 RUN apt-get --assume-yes install fonts-dejavu-core
 RUN apt-get --assume-yes install fonts-dejavu-extra
 RUN apt-get --assume-yes install xvfb
+
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
