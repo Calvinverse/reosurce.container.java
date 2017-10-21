@@ -1,4 +1,4 @@
-FROM 192.168.100.2:5000/calvinverse/resource.consul.ubuntu:0.1.0
+FROM 192.168.6.76:5000/calvinverse/resource.consul.ubuntu:0.1.0
 LABEL maintainer "Petrik van der Velde (@petrikvdvelde)"
 
 # Use baseimage-docker's init system.

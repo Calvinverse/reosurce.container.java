@@ -177,8 +177,8 @@
         **** PUSHTO - DOCKER ****
     -->
     <ItemGroup Condition=" '$(ShouldLoadDockerImagesToPush)' == 'true' ">
-        <DockerImagesToPush Include="192.168.100.2:5000/${CompanyNameInFilePath}/resource.java.jre.ubuntu:${VersionSemantic}" />
-        <DockerImagesToPush Include="192.168.100.2:5000/${CompanyNameInFilePath}/resource.java.jdk.ubuntu:${VersionSemantic}" />
+        <DockerImagesToPush Include="192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jre.ubuntu:${VersionSemantic}" />
+        <DockerImagesToPush Include="192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jdk.ubuntu:${VersionSemantic}" />
     </ItemGroup>
 
 
