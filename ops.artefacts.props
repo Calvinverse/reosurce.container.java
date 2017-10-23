@@ -159,10 +159,12 @@
         **** DOCKER - PACK ****
     -->
     <ItemGroup Condition=" '$(ShouldLoadDockerImagesToBuild)' == 'true' ">
-        <DockerImagesToBuild Include="$(DirBuildTempUbuntu)\jre">
+        <DockerImagesToBuild Include="$(DirBuildTempContainers)">
+            <DockerFile>$(DirBuildTempContainers)\jre\DockerFile</DockerFile>
             <Tags>192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jre.ubuntu:${VersionSemantic}</Tags>
         </DockerImagesToBuild>
-        <DockerImagesToBuild Include="$(DirBuildTempUbuntu)\jdk">
+        <DockerImagesToBuild Include="$(DirBuildTempContainers)">
+            <DockerFile>$(DirBuildTempContainers)\jdk\DockerFile</DockerFile>
             <Tags>192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jdk.ubuntu:${VersionSemantic}</Tags>
         </DockerImagesToBuild>
     </ItemGroup>

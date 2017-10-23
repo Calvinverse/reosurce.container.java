@@ -95,8 +95,8 @@
         -->
     </ItemGroup>
     <ItemGroup Condition=" '$(ShouldLoadFilesToCopy)' == 'true' ">
-        <FilesToCopy Include="$(DirSrc)\ubuntu\**\*">
-            <Destination>$(DirBuildTempUbuntu)</Destination>
+        <FilesToCopy Include="$(DirSrc)\**\*">
+            <Destination>$(DirBuildTempContainers)</Destination>
         </FilesToCopy>
     </ItemGroup>
     <ItemGroup Condition=" '$(ShouldLoadArchiveFilesToCopy)' == 'true' ">
