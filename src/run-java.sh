@@ -13,88 +13,111 @@
 #
 # ==========================================================
 
-# Error is indicated with a prefix in the return value
-check_error() {
-  local msg=$1
-  if echo ${msg} | grep -q "^ERROR:"; then
-    echo ${msg}
-    exit 1
-  fi
+ceiling() {
+  awk -vnumber="$1" -vdiv="$2" '
+    function ceiling(x){
+      return x%1 ? int(x)+1 : x
+    }
+    BEGIN{
+      print ceiling(number/div)
+    }
+  '
 }
 
-# The full qualified directory where this script is located
-get_script_dir() {
-  # Default is current directory
-  local local_dir="/opt/java/run"
-  local full_dir='cd "${local_dir}" ; pwd'
-  echo ${full_dir}
-}
+# Based on the cgroup limits, figure out the max number of core we should utilize
+core_limit() {
+  cpu_period_file="/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+  cpu_quota_file="/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+  if [ -r "${cpu_period_file}" ]; then
+    cpu_period="$(cat ${cpu_period_file})"
 
-load_env() {
-  local script_dir=$1
-
-  # Configuration stuff is read from this file
-  local run_env_sh="run-env.sh"
-
-  # Load default default config
-  if [ -f "${script_dir}/${run_env_sh}" ]; then
-    source "${script_dir}/${run_env_sh}"
-  fi
-
-  # Read in container limits and export the as environment variables
-  if [ -f "${script_dir}/container-limits.sh" ]; then
-    source "${script_dir}/container-limits.sh"
-  fi
-
-  if [ "x${JAVA_APP_JAR}" != x ]; then
-    export JAVA_APP_JAR="${JAVA_APP_JAR}"
-  fi
-}
-
-# Check for standard /opt/run-java-options first, fallback to run-java-options in the path if not existing
-run_java_options() {
-  if [ -f "/opt/run-java-options.sh" ]; then
-    echo 'sh /opt/run-java-options.sh'
-  else
-    which run-java-options.sh >/dev/null 2>&1
-    if [ $? = 0 ]; then
-      echo 'run-java-options.sh'
+    if [ -r "${cpu_quota_file}" ]; then
+      cpu_quota="$(cat ${cpu_quota_file})"
+      # cfs_quota_us == -1 --> no restrictions
+      if [ "x$cpu_quota" != "x-1" ]; then
+        ceiling "$cpu_quota" "$cpu_period"
+      fi
     fi
   fi
 }
 
-# Combine all java options
-get_java_options() {
-  local local_dir=$(get_script_dir)
-  local java_opts
-  local debug_opts
-  if [ -f "$local_dir/java-default-options.sh" ]; then
-    java_opts=$($local_dir/java-default-options.sh)
-  fi
-  if [ -f "$local_dir/debug-options.sh" ]; then
-    debug_opts=$($local_dir/debug-options.sh)
-  fi
-
-  # Normalize spaces with awk (i.e. trim and elimate double spaces)
-  echo "${JAVA_OPTIONS} $(run_java_options) ${debug_opts} ${java_opts}" | awk '$1=$1'
-}
-
-# Set process name if possible
-get_exec_args() {
-  if [ "x${JAVA_EXEC_ARGS}" != "x" ]; then
-    echo "${JAVA_EXEC_ARGS}"
+max_memory() {
+  mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
+  if [ -r "${mem_file}" ]; then
+    max_mem="$(cat ${mem_file})"
+    echo "${max_mem}"
+  else
+    echo "0"
   fi
 }
 
 # Start JVM
 startup() {
   # Initialize environment
-  load_env $(get_script_dir)
+  local_dir="/opt/java/run"
 
-  local args="-jar ${JAVA_APP_JAR}"
+  exec_args=""
+  echo "'JAVA_EXEC_ARGS': ${JAVA_EXEC_ARGS} ..."
+  if [ "x${JAVA_EXEC_ARGS}" != "x" ]; then
+    exec_args="${JAVA_EXEC_ARGS}"
+  fi
 
-  echo exec $(get_exec_args) java $(get_java_options) ${args} $*
-  exec $(get_exec_args) java $(get_java_options) ${args} $*
+  echo "Determining core limits ..."
+  java_core_limits=""
+  container_core_limit="$(core_limit)"
+  if [ "x$container_core_limit" != "x0" ]; then
+    if [ "x$container_core_limit" != x ]; then
+      echo "Setting core limits with ${container_core_limit} ..."
+      java_core_limits="-XX:ParallelGCThreads=${container_core_limit} " \
+          "-XX:ConcGCThreads=${container_core_limit} " \
+          "-Djava.util.concurrent.ForkJoinPool.common.parallelism=${container_core_limit}"
+    fi
+  fi
+
+  # Check whether -Xmx is already given in JAVA_OPTIONS. Then we dont
+  # do anything here
+  echo "Determining max memory usage ..."
+  java_max_memory=""
+  if echo "${JAVA_OPTIONS}" | grep -q -- "-Xmx"; then
+    echo "-Xmx already specified"
+  else
+    # Check for the 'real memory size' and caluclate mx from a ratio
+    # given (default is 50%)
+    max_mem="$(max_memory)"
+    if [ "x${max_mem}" != "x0" ]; then
+      ratio=${JAVA_MAX_MEM_RATIO:-50}
+      mx=$(echo "${max_mem} ${ratio} 1048576" | awk '{printf "%d\n" , ($1*$2)/(100*$3) + 0.5}')
+      java_max_memory="-Xmx${mx}m"
+
+      echo "Maximum memory for container set to ${max_mem}. Setting max memory for java to ${mx} Mb"
+    fi
+  fi
+
+  java_diagnostics=""
+  if [ "x$JAVA_DIAGNOSTICS" != "x" ]; then
+    java_diagnostics="-XX:NativeMemoryTracking=summary -XX:+PrintGC -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UnlockDiagnosticVMOptions"
+  fi
+
+  user_java_opts=""
+  echo "Searching for 'run-java-options.sh' in /opt ..."
+  if [ -f "/opt/run-java-options.sh" ]; then
+    echo "Determining custom options ..."
+    user_java_opts=$(/opt/run-java-options.sh)
+
+    echo "Custom java options: ${user_java_opts}"
+  fi
+
+  user_java_jar_opts=""
+  echo "Searching for 'run-java-jar-options.sh' in /opt ..."
+  if [ -f "/opt/run-java-jar-options.sh" ]; then
+    echo "Determining custom jar options ..."
+    user_java_jar_opts=$(/opt/run-java-jar-options.sh)
+
+    echo "Custom java jar options: ${user_java_jar_opts}"
+  fi
+
+  echo exec ${exec_args} java ${JAVA_OPTIONS} ${user_java_opts} ${java_max_memory} ${java_diagnostics} ${java_core_limits} -jar ${JAVA_APP_JAR} ${user_java_jar_opts}
+  exec ${exec_args} java ${JAVA_OPTIONS} ${user_java_opts} ${java_max_memory} ${java_diagnostics} ${java_core_limits} -jar ${JAVA_APP_JAR} ${user_java_jar_opts}
 }
 
 # =============================================================================

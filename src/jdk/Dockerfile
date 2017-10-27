@@ -33,9 +33,5 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/bin/java
 RUN mkdir /opt/java \
     && mkdir /opt/java/run
 COPY run-java.sh /opt/java/run/
-COPY container-limits.sh /opt/java/run/
-COPY java-default-options.sh /opt/java/run/
 RUN dos2unix /opt/java/run/run-java.sh \
-    && dos2unix /opt/java/run/container-limits.sh \
-    && dos2unix /opt/java/run/java-default-options.sh \
     && chmod +x /opt/java/run/run-java.sh
