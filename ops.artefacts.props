@@ -161,11 +161,11 @@
     <ItemGroup Condition=" '$(ShouldLoadDockerImagesToBuild)' == 'true' ">
         <DockerImagesToBuild Include="$(DirBuildTempContainers)">
             <DockerFile>$(DirBuildTempContainers)\jre\DockerFile</DockerFile>
-            <Tags>192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jre.ubuntu:${VersionSemantic}</Tags>
+            <Tags>192.168.2.30:5000/${CompanyNameInFilePath}/resource.java.jre.ubuntu:${VersionSemantic}</Tags>
         </DockerImagesToBuild>
         <DockerImagesToBuild Include="$(DirBuildTempContainers)">
             <DockerFile>$(DirBuildTempContainers)\jdk\DockerFile</DockerFile>
-            <Tags>192.168.6.76:5000/${CompanyNameInFilePath}/resource.java.jdk.ubuntu:${VersionSemantic}</Tags>
+            <Tags>192.168.2.30:5000/${CompanyNameInFilePath}/resource.java.jdk.ubuntu:${VersionSemantic}</Tags>
         </DockerImagesToBuild>
     </ItemGroup>
 
